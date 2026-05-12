@@ -14,6 +14,22 @@ export const simulationTurnSchema = z.object({
   action: z.enum(["message", "reveal_unique_clue", "cast_vote"]),
   reveal_unique_clue: revealUniqueClueSchema.optional(),
   cast_vote: castVoteSchema.optional(),
+  // required: z
+  //   .array(z.enum(["message", "reveal_unique_clue", "cast_vote"]))
+  //   .min(1),
+});
+
+export const moderatorDecisionSchema = z.object({
+  shouldIntervene: z.boolean(),
+  reasoning: z.string().min(1),
+  interventionType: z.enum([
+    "ask_for_unique_info",
+    "flag_premature_convergence",
+    "probe_discussion",
+    "none",
+  ]),
+  message: z.string().optional(),
 });
 
 export type SimulationTurnResult = z.infer<typeof simulationTurnSchema>;
+export type ModeratorDecision = z.infer<typeof moderatorDecisionSchema>;

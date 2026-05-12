@@ -6,7 +6,8 @@ export default function ComparePage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Compare Runs</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Side-by-side comparison of key metrics and rationale traces.
+          Side-by-side comparison of outcomes, vote distributions, unique-clue surfacing
+          rates, and moderator intervention counts.
         </p>
       </header>
       <CompareView />

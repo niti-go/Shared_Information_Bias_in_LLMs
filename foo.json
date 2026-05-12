@@ -1,0 +1,57 @@
+{
+  "error": {
+    "message": "Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'message'.",
+    "type": "AI_APICallError",
+    "param": {
+      "error": "Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'message'.",
+      "statusCode": 400,
+      "name": "AI_APICallError",
+      "message": "Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'message'.",
+      "isRetryable": false,
+      "type": "AI_APICallError"
+    }
+  },
+  "providerMetadata": {
+    "gateway": {
+      "routing": {
+        "originalModelId": "openai/gpt-4o-mini",
+        "resolvedProvider": "openai",
+        "resolvedProviderApiModelId": "gpt-4o-mini",
+        "fallbacksAvailable": ["azure"],
+        "canonicalSlug": "openai/gpt-4o-mini",
+        "modelAttemptCount": 1,
+        "modelAttempts": [
+          {
+            "modelId": "openai:gpt-4o-mini",
+            "canonicalSlug": "openai/gpt-4o-mini",
+            "success": false,
+            "providerAttemptCount": 2,
+            "providerAttempts": [
+              {
+                "provider": "openai",
+                "providerApiModelId": "gpt-4o-mini",
+                "credentialType": "system",
+                "success": false,
+                "error": "Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'message'.",
+                "startTime": 1778549708722,
+                "endTime": 1778549708814,
+                "statusCode": 400
+              },
+              {
+                "provider": "azure",
+                "providerApiModelId": "gpt-4o-mini",
+                "credentialType": "system",
+                "success": false,
+                "error": "Invalid schema for response_format 'response': In context=(), 'required' is required to be supplied and to be an array including every key in properties. Missing 'message'.",
+                "startTime": 1778549708821,
+                "endTime": 1778549708876,
+                "statusCode": 400
+              }
+            ]
+          }
+        ],
+        "totalProviderAttemptCount": 2
+      }
+    }
+  }
+}

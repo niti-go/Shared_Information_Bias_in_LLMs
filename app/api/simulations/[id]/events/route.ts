@@ -1,9 +1,4 @@
-import {
-  getSimulation,
-  listEvents,
-  listVotes,
-  listSimulationAgents,
-} from "@/lib/db/repository";
+import { getSimulation, listEvents, listSimulationAgents, listVotes } from "@/lib/db/repository";
 import { summarizeSimulation } from "@/lib/sim/engine";
 
 export async function GET(
