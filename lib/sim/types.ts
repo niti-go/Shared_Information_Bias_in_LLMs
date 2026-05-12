@@ -5,7 +5,6 @@ export type SimulationState = "created" | "running" | "voting" | "completed";
 export type EventType =
   | "system"
   | "message"
-  | "tool_reveal_unique_clue"
   | "tool_cast_vote"
   | "moderator_intervention"
   | "state_transition";

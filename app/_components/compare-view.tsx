@@ -17,8 +17,6 @@ type VoteRecord = {
 };
 
 type Metrics = {
-  uniqueInfoMentions: number;
-  totalPrivateClues: number;
   votesCount: number;
   totalAgents: number;
   moderatorInterventions: number;
@@ -152,15 +150,6 @@ function RunMetrics({
           <p className="text-xs text-zinc-500">Turns</p>
           <p className="font-medium">
             {sim.turnIndex}/{sim.maxTurns}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-zinc-500">Unique clues surfaced</p>
-          <p className="font-medium">
-            {metrics.uniqueInfoMentions}/{metrics.totalPrivateClues}
-            <span className="ml-1 text-zinc-400">
-              ({pct(metrics.uniqueInfoMentions, metrics.totalPrivateClues)})
-            </span>
           </p>
         </div>
         {sim.mode === "structured" && (
@@ -366,11 +355,6 @@ export function CompareView() {
                     "Turns elapsed",
                     `${left.simulation.turnIndex}/${left.simulation.maxTurns}`,
                     `${right.simulation.turnIndex}/${right.simulation.maxTurns}`,
-                  ],
-                  [
-                    "Unique clues surfaced",
-                    `${left.metrics.uniqueInfoMentions}/${left.metrics.totalPrivateClues} (${pct(left.metrics.uniqueInfoMentions, left.metrics.totalPrivateClues)})`,
-                    `${right.metrics.uniqueInfoMentions}/${right.metrics.totalPrivateClues} (${pct(right.metrics.uniqueInfoMentions, right.metrics.totalPrivateClues)})`,
                   ],
                   [
                     "Moderator interventions",

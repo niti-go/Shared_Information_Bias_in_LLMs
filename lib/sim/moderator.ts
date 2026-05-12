@@ -18,7 +18,6 @@ const MODERATOR_INTERVAL = 3;
 function buildModeratorPrompt(
   simulation: SimulationRecord,
   transcript: string,
-  uniqueCluesRevealed: number,
   votesRecorded: number,
   convergenceOption: string | null,
 ): UIMessage {
@@ -41,7 +40,6 @@ function buildModeratorPrompt(
           "Current statistics:",
           `  - Turns elapsed: ${simulation.turnIndex} of ${simulation.maxTurns}`,
           `  - Turns remaining: ${turnsLeft}`,
-          `  - Unique private clues surfaced by agents: ${uniqueCluesRevealed}`,
           `  - Votes already recorded: ${votesRecorded}`,
           convergenceOption
             ? `  - The group appears to be converging toward: "${convergenceOption}"`
@@ -109,10 +107,6 @@ export async function maybeRunModerator(
   const events = await listEvents(simulation.id);
   const votes = await listVotes(simulation.id);
 
-  const uniqueCluesRevealed = events.filter(
-    (e) => e.type === "tool_reveal_unique_clue",
-  ).length;
-
   const convergenceOption = detectConvergence(events, decisionOptions);
 
   const transcript = events
@@ -132,7 +126,6 @@ export async function maybeRunModerator(
   const promptMessage = buildModeratorPrompt(
     simulation,
     transcript,
-    uniqueCluesRevealed,
     votes.length,
     convergenceOption,
   );
@@ -140,8 +133,7 @@ export async function maybeRunModerator(
   const shouldUseMock = !process.env.AI_GATEWAY_API_KEY;
 
   if (shouldUseMock) {
-    const shouldIntervene =
-      uniqueCluesRevealed < 2 || convergenceOption !== null;
+    const shouldIntervene = convergenceOption !== null;
     if (!shouldIntervene) return;
 
     await appendEvent({

@@ -45,14 +45,7 @@ function asTextMessage(
   };
 }
 
-function modeInstruction(mode: SimulationMode): string {
-  if (mode === "structured") {
-    return [
-      "You are in a STRUCTURED discussion with a neutral moderator.",
-      "When the moderator speaks, take their prompt seriously and prioritize surfacing any information you haven't yet shared.",
-      "Do not rush to consensus — ensure your unique perspective has been heard.",
-    ].join(" ");
-  }
+function modeInstruction(_mode: SimulationMode): string {
   return "You are in an open group discussion. Debate freely and aim to reach a well-reasoned decision.";
 }
 
@@ -68,16 +61,15 @@ function getMockTurn(
       cast_vote: {
         option: getScenarioByKey(simulation.scenarioKey).optimalDecision,
         rationale:
-          "The combined evidence from the discussion and my private analysis points clearly to this option.",
+          "The combined evidence from the discussion points clearly to this option.",
       },
     };
   }
 
   if (turnIndex % 3 === 1) {
     return {
-      message: `I'd like to share a specific piece of analysis from my area of expertise that I think is critical here.`,
-      action: "reveal_unique_clue" as const,
-      reveal_unique_clue: { clue: activeAgent.privateClue },
+      message: `I'd like to share a specific piece of analysis from my area of expertise that I think is critical here. ${activeAgent.privateClue}`,
+      action: "message" as const,
     };
   }
 
@@ -140,18 +132,15 @@ async function buildAgentPrompt(
       `Context: ${scenario.description}`,
       `Decision options: ${scenario.decisionOptions.join(" | ")}`,
       "",
-      "Information shared with ALL participants:",
+      "Information available to you:",
       scenario.sharedClues.map((c) => `  • ${c}`).join("\n"),
-      "",
-      "Your PRIVATE information (only you know this):",
       `  • ${speaker.privateClue}`,
       "",
       "Recent discussion:",
       transcript || "(no prior messages — you may open the discussion)",
       "",
       "Instructions:",
-      "  • Choose one action: 'message' (discuss), 'reveal_unique_clue' (explicitly surface your private info), or 'cast_vote' (if you are ready to commit).",
-      "  • If you choose reveal_unique_clue, your 'clue' field should faithfully convey your private information in your own words.",
+      "  • Choose one action: 'message' (discuss) or 'cast_vote' (if you are ready to commit).",
       "  • If you choose cast_vote, your 'option' must match one of the decision options exactly.",
       "  • Write a concise, natural message (2–5 sentences) as yourself in this role.",
     ].join("\n"),
@@ -246,23 +235,6 @@ export async function runSimulationStep(simulationId: string) {
     },
   });
 
-  if (
-    response.output.action === "reveal_unique_clue" &&
-    response.output.reveal_unique_clue
-  ) {
-    await appendEvent({
-      simulationId: refreshed.id,
-      turnIndex: refreshed.turnIndex,
-      type: "tool_reveal_unique_clue",
-      agentId: activeAgent.id,
-      payload: {
-        clue: response.output.reveal_unique_clue.clue,
-        speakerName: activeAgent.displayName,
-        speakerRole: activeAgent.role,
-      },
-    });
-  }
-
   if (response.output.action === "cast_vote" && response.output.cast_vote) {
     await upsertVote({
       simulationId: refreshed.id,
@@ -346,10 +318,6 @@ export async function summarizeSimulation(simulationId: string) {
   const events = await listEvents(simulation.id);
   const votes = await listVotes(simulation.id);
 
-  const uniqueInfoCount = events.filter(
-    (e) => e.type === "tool_reveal_unique_clue",
-  ).length;
-
   const moderatorCount = events.filter(
     (e) => e.type === "moderator_intervention",
   ).length;
@@ -360,8 +328,6 @@ export async function summarizeSimulation(simulationId: string) {
   return {
     simulation,
     metrics: {
-      uniqueInfoMentions: uniqueInfoCount,
-      totalPrivateClues: totalAgents,
       votesCount: votes.length,
       totalAgents,
       moderatorInterventions: moderatorCount,
