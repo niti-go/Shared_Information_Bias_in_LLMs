@@ -23,6 +23,8 @@ type Metrics = {
   consensus: string | null;
   optimalDecision: string;
   isConsensusOptimal: boolean;
+  uniqueCluesSurfaced: number;
+  totalUniqueClues: number;
 };
 
 type RunData = {
@@ -30,6 +32,7 @@ type RunData = {
     id: string;
     scenarioKey: string;
     mode: string;
+    moderatorPrompt: string | null;
     model: string;
     state: string;
     turnIndex: number;
@@ -39,6 +42,12 @@ type RunData = {
   votes: VoteRecord[];
   metrics: Metrics;
 };
+
+function modeLabel(mode: string): string {
+  if (mode === "unstructured") return "Unmoderated";
+  if (mode === "structured") return "Moderated";
+  return mode;
+}
 
 type SimListItem = {
   id: string;
@@ -137,9 +146,14 @@ function RunMetrics({
         <p className="font-medium">{sim.model}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <span className="rounded-full border px-2 py-0.5 text-xs capitalize">
-          {sim.mode}
+        <span className="rounded-full border px-2 py-0.5 text-xs">
+          {modeLabel(sim.mode)}
         </span>
+        {sim.moderatorPrompt && (
+          <span className="rounded-full border border-indigo-300 bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
+            {sim.moderatorPrompt}
+          </span>
+        )}
         <span className="rounded-full border px-2 py-0.5 text-xs capitalize">
           {sim.state}
         </span>
@@ -161,6 +175,12 @@ function RunMetrics({
         <div>
           <p className="text-xs text-zinc-500">Final consensus</p>
           <p className="font-medium">{metrics.consensus ?? "—"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-zinc-500">Unique clues surfaced</p>
+          <p className="font-medium">
+            {metrics.uniqueCluesSurfaced}/{metrics.totalUniqueClues}
+          </p>
         </div>
       </div>
 
@@ -349,7 +369,12 @@ export function CompareView() {
               <tbody className="divide-y">
                 {[
                   ["Scenario", left.simulation.scenarioKey, right.simulation.scenarioKey],
-                  ["Mode", left.simulation.mode, right.simulation.mode],
+                  ["Mode", modeLabel(left.simulation.mode), modeLabel(right.simulation.mode)],
+                  [
+                    "Moderator prompt",
+                    left.simulation.moderatorPrompt ?? "—",
+                    right.simulation.moderatorPrompt ?? "—",
+                  ],
                   ["Model", left.simulation.model, right.simulation.model],
                   [
                     "Turns elapsed",
@@ -360,6 +385,11 @@ export function CompareView() {
                     "Moderator interventions",
                     String(left.metrics.moderatorInterventions),
                     String(right.metrics.moderatorInterventions),
+                  ],
+                  [
+                    "Unique clues surfaced",
+                    `${left.metrics.uniqueCluesSurfaced}/${left.metrics.totalUniqueClues}`,
+                    `${right.metrics.uniqueCluesSurfaced}/${right.metrics.totalUniqueClues}`,
                   ],
                   ["Final consensus", left.metrics.consensus ?? "—", right.metrics.consensus ?? "—"],
                   ["Optimal decision", left.metrics.optimalDecision, right.metrics.optimalDecision],

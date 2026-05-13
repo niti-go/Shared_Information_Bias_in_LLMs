@@ -3,6 +3,7 @@ import { createIdGenerator, type UIMessage } from "ai";
 import { db, ensureDatabase } from "@/lib/db/client";
 import type {
   EventType,
+  ModeratorPrompt,
   SimulationEventRecord,
   SimulationMode,
   SimulationRecord,
@@ -35,6 +36,10 @@ function rowToSimulation(row: SqlRow): SimulationRecord {
     id: String(row.id),
     scenarioKey: String(row.scenario_key),
     mode: row.mode as SimulationMode,
+    moderatorPrompt:
+      row.moderator_prompt == null
+        ? null
+        : (String(row.moderator_prompt) as ModeratorPrompt),
     model: String(row.model),
     fallbackModels: parseJson<string[]>(row.fallback_models_json, []),
     state: row.state as SimulationState,
@@ -73,6 +78,7 @@ export async function createSimulation(input: {
   id: string;
   scenarioKey: string;
   mode: SimulationMode;
+  moderatorPrompt: ModeratorPrompt | null;
   model: string;
   fallbackModels: string[];
   maxTurns: number;
@@ -84,13 +90,14 @@ export async function createSimulation(input: {
   await db.execute({
     sql: `
       INSERT INTO simulations (
-        id, scenario_key, mode, model, fallback_models_json, state, turn_index, max_turns, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, scenario_key, mode, moderator_prompt, model, fallback_models_json, state, turn_index, max_turns, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     args: [
       input.id,
       input.scenarioKey,
       input.mode,
+      input.moderatorPrompt,
       input.model,
       JSON.stringify(input.fallbackModels),
       "created",

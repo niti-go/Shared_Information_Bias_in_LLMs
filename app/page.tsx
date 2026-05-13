@@ -20,7 +20,7 @@ export default function Home() {
           — private information during group decision-making. Runs{" "}
           <strong>hidden-profile scenarios</strong> where optimal outcomes require
           surfacing information distributed across agents, then measures whether
-          models find the correct answer alone or with a structured moderator.
+          models find the correct answer alone or with a moderator.
         </p>
       </header>
 
@@ -75,8 +75,8 @@ export default function Home() {
               body: "5 LLM agents take turns in a discussion. They can share a message, explicitly reveal their private clue, or cast an early vote. All messages are stored as events.",
             },
             {
-              title: "Moderator (structured mode)",
-              body: "In structured mode, a neutral moderator LLM watches the transcript and intervenes when it detects premature convergence or stalled discussion — never revealing private info, only prompting reflection.",
+              title: "Moderator (moderated mode)",
+              body: "In moderated mode, a neutral moderator LLM watches the transcript and intervenes when it detects premature convergence or stalled discussion — never revealing private info, only prompting reflection. Multiple prompt variants are selectable to test which kind of facilitation, if any, actually changes group behavior.",
             },
             {
               title: "Voting round & outcome",

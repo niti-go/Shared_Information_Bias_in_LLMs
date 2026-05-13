@@ -21,5 +21,15 @@ export async function ensureDatabase() {
     await db.execute(statement);
   }
 
+  // Additive migration: existing databases created before moderator_prompt
+  // was added won't have the column. ALTER TABLE ADD COLUMN is idempotent
+  // via the "duplicate column" error we swallow.
+  try {
+    await db.execute("ALTER TABLE simulations ADD COLUMN moderator_prompt TEXT");
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/duplicate column/i.test(msg)) throw err;
+  }
+
   initialized = true;
 }

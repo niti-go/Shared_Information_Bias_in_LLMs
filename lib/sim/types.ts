@@ -1,5 +1,11 @@
 export type SimulationMode = "unstructured" | "structured";
 
+export type ModeratorPrompt =
+  | "blind-process"
+  | "devils-advocate"
+  | "socratic-probe"
+  | "hidden-profile-aware";
+
 export type SimulationState = "created" | "running" | "voting" | "completed";
 
 export type EventType =
@@ -30,6 +36,7 @@ export interface SimulationRecord {
   id: string;
   scenarioKey: string;
   mode: SimulationMode;
+  moderatorPrompt: ModeratorPrompt | null;
   model: string;
   fallbackModels: string[];
   state: SimulationState;

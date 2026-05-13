@@ -3,10 +3,25 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+function ClientTimestamp({ iso }: { iso: string }) {
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    setText(new Date(iso).toLocaleString());
+  }, [iso]);
+  return <>{text ?? iso}</>;
+}
+
+type ModeratorPromptId =
+  | "blind-process"
+  | "devils-advocate"
+  | "socratic-probe"
+  | "hidden-profile-aware";
+
 type SimulationSummary = {
   id: string;
   scenarioKey: string;
   mode: "unstructured" | "structured";
+  moderatorPrompt: ModeratorPromptId | null;
   model: string;
   state: "created" | "running" | "voting" | "completed";
   turnIndex: number;
@@ -15,15 +30,64 @@ type SimulationSummary = {
   updatedAt: string;
 };
 
+const MODERATOR_PROMPT_OPTIONS: Array<{
+  id: ModeratorPromptId;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "blind-process",
+    label: "Blind facilitator (process-only)",
+    description:
+      "Knows nothing about the scenario. Asks generic procedural questions about turn-taking, depth of reasoning, and engagement. Methodologically cleanest.",
+  },
+  {
+    id: "devils-advocate",
+    label: "Devil's advocate",
+    description:
+      "Surfaces the strongest case against the group's current direction. Tests whether stress-testing alone improves outcomes.",
+  },
+  {
+    id: "socratic-probe",
+    label: "Socratic probe",
+    description:
+      "Only asks justification questions about load-bearing claims. Tests whether forcing justification alone changes outcomes.",
+  },
+  {
+    id: "hidden-profile-aware",
+    label: "Hidden-profile-aware (leaky)",
+    description:
+      "Explicitly prompts agents to surface unique information. Mirrors Stasser-style structured information-sharing interventions; leaks the experimental construct.",
+  },
+];
+
+type ScenarioAgent = {
+  id: string;
+  displayName: string;
+  role: string;
+  privateClue: string;
+};
+
 type ScenarioSummary = {
   key: string;
   title: string;
   description: string;
+  decisionOptions: string[];
+  sharedClues: string[];
+  optimalDecision: string;
+  agents: ScenarioAgent[];
 };
 
 type SimulationsResponse = {
   simulations: SimulationSummary[];
   scenarios: ScenarioSummary[];
+};
+
+type ModeratorPromptVariant = {
+  id: ModeratorPromptId;
+  label: string;
+  description: string;
+  template: string;
 };
 
 const DEFAULT_MODELS = [
@@ -44,6 +108,11 @@ const MODE_STYLES: Record<string, string> = {
   structured: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
 };
 
+const MODE_LABEL: Record<string, string> = {
+  unstructured: "Unmoderated",
+  structured: "Moderated",
+};
+
 function StatePill({ state }: { state: string }) {
   return (
     <span
@@ -57,21 +126,30 @@ function StatePill({ state }: { state: string }) {
 function ModePill({ mode }: { mode: string }) {
   return (
     <span
-      className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${MODE_STYLES[mode] ?? MODE_STYLES.unstructured}`}
+      className={`rounded-full px-2 py-0.5 text-xs font-medium ${MODE_STYLES[mode] ?? MODE_STYLES.unstructured}`}
     >
-      {mode}
+      {MODE_LABEL[mode] ?? mode}
     </span>
   );
 }
 
 export function SimulationsDashboard() {
   const [data, setData] = useState<SimulationsResponse | null>(null);
+  const [moderatorVariants, setModeratorVariants] = useState<
+    ModeratorPromptVariant[] | null
+  >(null);
   const [creating, setCreating] = useState(false);
   const [scenarioKey, setScenarioKey] = useState("");
   const [mode, setMode] = useState<"unstructured" | "structured">("unstructured");
+  const [moderatorPrompt, setModeratorPrompt] =
+    useState<ModeratorPromptId>("blind-process");
   const [model, setModel] = useState(DEFAULT_MODELS[0]);
   const [maxTurns, setMaxTurns] = useState(10);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedPrompt = MODERATOR_PROMPT_OPTIONS.find(
+    (o) => o.id === moderatorPrompt,
+  );
 
   const load = useCallback(async () => {
     const res = await fetch("/api/simulations", { cache: "no-store" });
@@ -88,6 +166,17 @@ export function SimulationsDashboard() {
       setError(err instanceof Error ? err.message : "Unknown error");
     });
   }, [load]);
+
+  useEffect(() => {
+    fetch("/api/moderator-prompts", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((payload: { variants: ModeratorPromptVariant[] }) => {
+        setModeratorVariants(payload.variants);
+      })
+      .catch(() => {
+        // Non-fatal: the templates panel just won't render.
+      });
+  }, []);
 
   const sortedSimulations = useMemo(
     () =>
@@ -112,7 +201,14 @@ export function SimulationsDashboard() {
       const res = await fetch("/api/simulations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scenarioKey, mode, model, fallbackModels: [], maxTurns }),
+        body: JSON.stringify({
+          scenarioKey,
+          mode,
+          moderatorPrompt: mode === "structured" ? moderatorPrompt : null,
+          model,
+          fallbackModels: [],
+          maxTurns,
+        }),
       });
       if (!res.ok) {
         const payload = await res.json() as Record<string, unknown>;
@@ -157,8 +253,8 @@ export function SimulationsDashboard() {
                 setMode(e.target.value as "unstructured" | "structured")
               }
             >
-              <option value="unstructured">Unstructured</option>
-              <option value="structured">Structured (with moderator)</option>
+              <option value="unstructured">Unmoderated</option>
+              <option value="structured">Moderated</option>
             </select>
           </label>
 
@@ -194,8 +290,107 @@ export function SimulationsDashboard() {
           </label>
         </div>
 
+        {mode === "structured" && (
+          <div className="space-y-2 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-900 dark:bg-indigo-950/20">
+            <label className="block text-sm">
+              <span className="mb-1 block font-medium">Moderator prompt</span>
+              <select
+                className="w-full rounded-lg border bg-white px-3 py-2 dark:bg-zinc-800"
+                value={moderatorPrompt}
+                onChange={(e) =>
+                  setModeratorPrompt(e.target.value as ModeratorPromptId)
+                }
+              >
+                {MODERATOR_PROMPT_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedPrompt && (
+              <p className="text-xs text-zinc-600 dark:text-zinc-400">
+                {selectedPrompt.description}
+              </p>
+            )}
+            {moderatorVariants && (
+              <details className="rounded-md border border-indigo-200 bg-white p-2 text-xs dark:border-indigo-900 dark:bg-zinc-900">
+                <summary className="cursor-pointer font-medium">
+                  Show full prompt template sent to the moderator
+                </summary>
+                <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded bg-zinc-50 p-2 font-mono text-[11px] leading-relaxed text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                  {moderatorVariants.find((v) => v.id === moderatorPrompt)
+                    ?.template ?? "(template unavailable)"}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+
         {selectedScenario && (
-          <p className="text-sm text-zinc-500">{selectedScenario.description}</p>
+          <div className="space-y-2">
+            <p className="text-sm text-zinc-500">{selectedScenario.description}</p>
+            <details className="rounded-lg border bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
+              <summary className="cursor-pointer font-medium">
+                Scenario details (options, shared clues, agents & private clues)
+              </summary>
+              <div className="mt-3 space-y-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Decision options
+                  </p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {selectedScenario.decisionOptions.map((opt) => (
+                      <li key={opt}>
+                        {opt}
+                        {opt === selectedScenario.optimalDecision && (
+                          <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                            ground-truth optimal
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Shared clues (every agent sees these)
+                  </p>
+                  <ul className="mt-1 list-disc pl-5 text-zinc-600 dark:text-zinc-400">
+                    {selectedScenario.sharedClues.map((clue, i) => (
+                      <li key={i}>{clue}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Agents & their private clues
+                  </p>
+                  <div className="mt-1 space-y-2">
+                    {selectedScenario.agents.map((agent) => (
+                      <div
+                        key={agent.id}
+                        className="rounded-md border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <p className="font-medium">
+                          {agent.displayName}{" "}
+                          <span className="font-normal text-zinc-500">
+                            — {agent.role}
+                          </span>
+                        </p>
+                        <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+                          <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                            Private clue:
+                          </span>{" "}
+                          {agent.privateClue}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
         )}
 
         <div className="flex items-center gap-3">
@@ -235,6 +430,11 @@ export function SimulationsDashboard() {
                     </p>
                     <p className="mt-0.5 text-sm text-zinc-500">
                       {sim.model}
+                      {sim.moderatorPrompt && (
+                        <span className="ml-2 text-xs text-indigo-600 dark:text-indigo-400">
+                          · moderator: {sim.moderatorPrompt}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -266,7 +466,7 @@ export function SimulationsDashboard() {
                 </div>
 
                 <p className="mt-2 text-xs text-zinc-400">
-                  Created {new Date(sim.createdAt).toLocaleString()}
+                  Created <ClientTimestamp iso={sim.createdAt} />
                 </p>
               </Link>
             );

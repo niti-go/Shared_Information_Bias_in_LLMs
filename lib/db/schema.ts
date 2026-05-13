@@ -4,6 +4,7 @@ export const schemaStatements = [
     id TEXT PRIMARY KEY,
     scenario_key TEXT NOT NULL,
     mode TEXT NOT NULL,
+    moderator_prompt TEXT,
     model TEXT NOT NULL,
     fallback_models_json TEXT NOT NULL,
     state TEXT NOT NULL,

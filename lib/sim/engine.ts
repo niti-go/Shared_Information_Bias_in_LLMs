@@ -310,6 +310,47 @@ export async function finalizeSimulationVote(simulationId: string) {
   return summarizeSimulation(simulationId);
 }
 
+function extractKeywords(clue: string): string[] {
+  // Pull distinctive content words from a private clue so we can detect
+  // whether the clue's substance was surfaced in the transcript. We strip
+  // stopwords and short tokens to reduce false positives from filler.
+  const stopwords = new Set([
+    "the", "a", "an", "of", "to", "in", "on", "for", "and", "or", "but",
+    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+    "do", "does", "did", "with", "by", "at", "from", "as", "that", "this",
+    "these", "those", "it", "its", "their", "they", "them", "we", "our",
+    "i", "you", "your", "he", "she", "his", "her", "not", "no", "if", "than",
+    "then", "so", "such", "also", "more", "most", "some", "any", "all",
+  ]);
+  return Array.from(
+    new Set(
+      clue
+        .toLowerCase()
+        .replace(/[^a-z0-9%$.\s-]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 4 && !stopwords.has(w)),
+    ),
+  );
+}
+
+function clueSurfaced(clue: string, transcript: string): boolean {
+  const keywords = extractKeywords(clue);
+  if (keywords.length === 0) return false;
+  const lower = transcript.toLowerCase();
+  // Require at least 40% of the clue's distinctive keywords to appear,
+  // with a minimum of 2 hits. This is heuristic but tracks substantive
+  // mentions, not single-word coincidences.
+  const minHits = Math.max(2, Math.ceil(keywords.length * 0.4));
+  let hits = 0;
+  for (const kw of keywords) {
+    if (lower.includes(kw)) {
+      hits += 1;
+      if (hits >= minHits) return true;
+    }
+  }
+  return false;
+}
+
 export async function summarizeSimulation(simulationId: string) {
   const simulation = await getSimulation(simulationId);
   if (!simulation) throw new Error("Simulation not found.");
@@ -317,6 +358,7 @@ export async function summarizeSimulation(simulationId: string) {
   const scenario = getScenarioByKey(simulation.scenarioKey);
   const events = await listEvents(simulation.id);
   const votes = await listVotes(simulation.id);
+  const agents = await listSimulationAgents(simulation.id);
 
   const moderatorCount = events.filter(
     (e) => e.type === "moderator_intervention",
@@ -324,6 +366,22 @@ export async function summarizeSimulation(simulationId: string) {
 
   const consensus = majorityVote(votes);
   const totalAgents = scenario.agents.length;
+
+  const transcript = events
+    .filter((e) => e.type === "message")
+    .map((e) => String(e.payload.message ?? ""))
+    .join("\n");
+
+  const cluesSurfacedByAgent = agents.map((a) => ({
+    agentId: a.id,
+    displayName: a.displayName,
+    privateClue: a.privateClue,
+    surfaced: clueSurfaced(a.privateClue, transcript),
+  }));
+  const cluesSurfacedCount = cluesSurfacedByAgent.filter(
+    (c) => c.surfaced,
+  ).length;
+  const totalClues = cluesSurfacedByAgent.length;
 
   return {
     simulation,
@@ -336,6 +394,9 @@ export async function summarizeSimulation(simulationId: string) {
       isConsensusOptimal: consensus
         ? consensus === scenario.optimalDecision
         : false,
+      uniqueCluesSurfaced: cluesSurfacedCount,
+      totalUniqueClues: totalClues,
+      cluesSurfacedByAgent,
     },
   };
 }

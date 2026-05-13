@@ -33,6 +33,14 @@ type Metrics = {
   consensus: string | null;
   optimalDecision: string;
   isConsensusOptimal: boolean;
+  uniqueCluesSurfaced: number;
+  totalUniqueClues: number;
+  cluesSurfacedByAgent: Array<{
+    agentId: string;
+    displayName: string;
+    privateClue: string;
+    surfaced: boolean;
+  }>;
 };
 
 type SimulationData = {
@@ -40,6 +48,7 @@ type SimulationData = {
     id: string;
     scenarioKey: string;
     mode: string;
+    moderatorPrompt: string | null;
     model: string;
     state: "created" | "running" | "voting" | "completed";
     turnIndex: number;
@@ -417,10 +426,20 @@ export function SimulationDetail({ simulationId }: { simulationId: string }) {
               <ProgressBar value={metrics.votesCount} max={metrics.totalAgents} />
             </div>
             {sim.mode === "structured" && (
-              <div>
-                <p className="text-xs text-zinc-500">Moderator interventions</p>
-                <p className="text-sm font-medium">{metrics.moderatorInterventions}</p>
-              </div>
+              <>
+                <div>
+                  <p className="text-xs text-zinc-500">Moderator interventions</p>
+                  <p className="text-sm font-medium">{metrics.moderatorInterventions}</p>
+                </div>
+                {sim.moderatorPrompt && (
+                  <div>
+                    <p className="text-xs text-zinc-500">Moderator prompt</p>
+                    <p className="text-sm font-medium text-indigo-700 dark:text-indigo-400">
+                      {sim.moderatorPrompt}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
             {metrics.consensus && (
               <div>
@@ -428,6 +447,12 @@ export function SimulationDetail({ simulationId }: { simulationId: string }) {
                 <p className="text-sm font-medium">{metrics.consensus}</p>
               </div>
             )}
+            <div>
+              <p className="text-xs text-zinc-500">Unique clues surfaced</p>
+              <p className="text-sm font-medium">
+                {metrics.uniqueCluesSurfaced}/{metrics.totalUniqueClues}
+              </p>
+            </div>
           </div>
         </div>
       )}
