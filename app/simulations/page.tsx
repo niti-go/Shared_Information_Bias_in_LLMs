@@ -6,7 +6,7 @@ export default function SimulationsPage() {
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold">Simulations</h1>
         <p className="text-sm text-zinc-600 dark:text-zinc-300">
-          Create and manage unstructured/structured simulation runs.
+          Create and manage unmoderated/moderated simulation runs.
         </p>
       </header>
       <SimulationsDashboard />

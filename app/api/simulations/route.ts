@@ -7,11 +7,20 @@ import {
   listSimulations,
 } from "@/lib/db/repository";
 import { getScenarioByKey, scenarios } from "@/lib/sim/scenarios";
-import type { SimulationMode } from "@/lib/sim/types";
+import type { ModeratorPrompt, SimulationMode } from "@/lib/sim/types";
 
 const createSimulationSchema = z.object({
   scenarioKey: z.string().min(1),
   mode: z.enum(["unstructured", "structured"]).default("unstructured"),
+  moderatorPrompt: z
+    .enum([
+      "blind-process",
+      "devils-advocate",
+      "socratic-probe",
+      "hidden-profile-aware",
+    ])
+    .nullable()
+    .optional(),
   model: z.string().min(1).optional(),
   fallbackModels: z.array(z.string()).default([]),
   maxTurns: z.number().int().min(3).max(20).default(8),
@@ -26,6 +35,15 @@ export async function GET() {
       key: scenario.key,
       title: scenario.title,
       description: scenario.description,
+      decisionOptions: scenario.decisionOptions,
+      sharedClues: scenario.sharedClues,
+      optimalDecision: scenario.optimalDecision,
+      agents: scenario.agents.map((agent) => ({
+        id: agent.id,
+        displayName: agent.displayName,
+        role: agent.role,
+        privateClue: agent.privateClue,
+      })),
     })),
   });
 }
@@ -45,11 +63,16 @@ export async function POST(request: Request) {
   const scenario = getScenarioByKey(payload.scenarioKey);
   const simulationId = crypto.randomUUID();
   const mode: SimulationMode = payload.mode;
+  const moderatorPrompt: ModeratorPrompt | null =
+    mode === "structured"
+      ? (payload.moderatorPrompt ?? "blind-process")
+      : null;
 
   await createSimulation({
     id: simulationId,
     scenarioKey: payload.scenarioKey,
     mode,
+    moderatorPrompt,
     model: payload.model ?? getDefaultModel(),
     fallbackModels: payload.fallbackModels,
     maxTurns: payload.maxTurns,

@@ -45,14 +45,7 @@ function asTextMessage(
   };
 }
 
-function modeInstruction(mode: SimulationMode): string {
-  if (mode === "structured") {
-    return [
-      "You are in a STRUCTURED discussion with a neutral moderator.",
-      "When the moderator speaks, take their prompt seriously and prioritize surfacing any information you haven't yet shared.",
-      "Do not rush to consensus — ensure your unique perspective has been heard.",
-    ].join(" ");
-  }
+function modeInstruction(_mode: SimulationMode): string {
   return "You are in an open group discussion. Debate freely and aim to reach a well-reasoned decision.";
 }
 
@@ -68,16 +61,15 @@ function getMockTurn(
       cast_vote: {
         option: getScenarioByKey(simulation.scenarioKey).optimalDecision,
         rationale:
-          "The combined evidence from the discussion and my private analysis points clearly to this option.",
+          "The combined evidence from the discussion points clearly to this option.",
       },
     };
   }
 
   if (turnIndex % 3 === 1) {
     return {
-      message: `I'd like to share a specific piece of analysis from my area of expertise that I think is critical here.`,
-      action: "reveal_unique_clue" as const,
-      reveal_unique_clue: { clue: activeAgent.privateClue },
+      message: `I'd like to share a specific piece of analysis from my area of expertise that I think is critical here. ${activeAgent.privateClue}`,
+      action: "message" as const,
     };
   }
 
@@ -140,18 +132,15 @@ async function buildAgentPrompt(
       `Context: ${scenario.description}`,
       `Decision options: ${scenario.decisionOptions.join(" | ")}`,
       "",
-      "Information shared with ALL participants:",
+      "Information available to you:",
       scenario.sharedClues.map((c) => `  • ${c}`).join("\n"),
-      "",
-      "Your PRIVATE information (only you know this):",
       `  • ${speaker.privateClue}`,
       "",
       "Recent discussion:",
       transcript || "(no prior messages — you may open the discussion)",
       "",
       "Instructions:",
-      "  • Choose one action: 'message' (discuss), 'reveal_unique_clue' (explicitly surface your private info), or 'cast_vote' (if you are ready to commit).",
-      "  • If you choose reveal_unique_clue, your 'clue' field should faithfully convey your private information in your own words.",
+      "  • Choose one action: 'message' (discuss) or 'cast_vote' (if you are ready to commit).",
       "  • If you choose cast_vote, your 'option' must match one of the decision options exactly.",
       "  • Write a concise, natural message (2–5 sentences) as yourself in this role.",
     ].join("\n"),
@@ -246,23 +235,6 @@ export async function runSimulationStep(simulationId: string) {
     },
   });
 
-  if (
-    response.output.action === "reveal_unique_clue" &&
-    response.output.reveal_unique_clue
-  ) {
-    await appendEvent({
-      simulationId: refreshed.id,
-      turnIndex: refreshed.turnIndex,
-      type: "tool_reveal_unique_clue",
-      agentId: activeAgent.id,
-      payload: {
-        clue: response.output.reveal_unique_clue.clue,
-        speakerName: activeAgent.displayName,
-        speakerRole: activeAgent.role,
-      },
-    });
-  }
-
   if (response.output.action === "cast_vote" && response.output.cast_vote) {
     await upsertVote({
       simulationId: refreshed.id,
@@ -338,6 +310,47 @@ export async function finalizeSimulationVote(simulationId: string) {
   return summarizeSimulation(simulationId);
 }
 
+function extractKeywords(clue: string): string[] {
+  // Pull distinctive content words from a private clue so we can detect
+  // whether the clue's substance was surfaced in the transcript. We strip
+  // stopwords and short tokens to reduce false positives from filler.
+  const stopwords = new Set([
+    "the", "a", "an", "of", "to", "in", "on", "for", "and", "or", "but",
+    "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+    "do", "does", "did", "with", "by", "at", "from", "as", "that", "this",
+    "these", "those", "it", "its", "their", "they", "them", "we", "our",
+    "i", "you", "your", "he", "she", "his", "her", "not", "no", "if", "than",
+    "then", "so", "such", "also", "more", "most", "some", "any", "all",
+  ]);
+  return Array.from(
+    new Set(
+      clue
+        .toLowerCase()
+        .replace(/[^a-z0-9%$.\s-]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 4 && !stopwords.has(w)),
+    ),
+  );
+}
+
+function clueSurfaced(clue: string, transcript: string): boolean {
+  const keywords = extractKeywords(clue);
+  if (keywords.length === 0) return false;
+  const lower = transcript.toLowerCase();
+  // Require at least 40% of the clue's distinctive keywords to appear,
+  // with a minimum of 2 hits. This is heuristic but tracks substantive
+  // mentions, not single-word coincidences.
+  const minHits = Math.max(2, Math.ceil(keywords.length * 0.4));
+  let hits = 0;
+  for (const kw of keywords) {
+    if (lower.includes(kw)) {
+      hits += 1;
+      if (hits >= minHits) return true;
+    }
+  }
+  return false;
+}
+
 export async function summarizeSimulation(simulationId: string) {
   const simulation = await getSimulation(simulationId);
   if (!simulation) throw new Error("Simulation not found.");
@@ -345,10 +358,7 @@ export async function summarizeSimulation(simulationId: string) {
   const scenario = getScenarioByKey(simulation.scenarioKey);
   const events = await listEvents(simulation.id);
   const votes = await listVotes(simulation.id);
-
-  const uniqueInfoCount = events.filter(
-    (e) => e.type === "tool_reveal_unique_clue",
-  ).length;
+  const agents = await listSimulationAgents(simulation.id);
 
   const moderatorCount = events.filter(
     (e) => e.type === "moderator_intervention",
@@ -357,11 +367,25 @@ export async function summarizeSimulation(simulationId: string) {
   const consensus = majorityVote(votes);
   const totalAgents = scenario.agents.length;
 
+  const transcript = events
+    .filter((e) => e.type === "message")
+    .map((e) => String(e.payload.message ?? ""))
+    .join("\n");
+
+  const cluesSurfacedByAgent = agents.map((a) => ({
+    agentId: a.id,
+    displayName: a.displayName,
+    privateClue: a.privateClue,
+    surfaced: clueSurfaced(a.privateClue, transcript),
+  }));
+  const cluesSurfacedCount = cluesSurfacedByAgent.filter(
+    (c) => c.surfaced,
+  ).length;
+  const totalClues = cluesSurfacedByAgent.length;
+
   return {
     simulation,
     metrics: {
-      uniqueInfoMentions: uniqueInfoCount,
-      totalPrivateClues: totalAgents,
       votesCount: votes.length,
       totalAgents,
       moderatorInterventions: moderatorCount,
@@ -370,6 +394,9 @@ export async function summarizeSimulation(simulationId: string) {
       isConsensusOptimal: consensus
         ? consensus === scenario.optimalDecision
         : false,
+      uniqueCluesSurfaced: cluesSurfacedCount,
+      totalUniqueClues: totalClues,
+      cluesSurfacedByAgent,
     },
   };
 }

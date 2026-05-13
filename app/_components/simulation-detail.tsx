@@ -27,14 +27,20 @@ type VoteRecord = {
 };
 
 type Metrics = {
-  uniqueInfoMentions: number;
-  totalPrivateClues: number;
   votesCount: number;
   totalAgents: number;
   moderatorInterventions: number;
   consensus: string | null;
   optimalDecision: string;
   isConsensusOptimal: boolean;
+  uniqueCluesSurfaced: number;
+  totalUniqueClues: number;
+  cluesSurfacedByAgent: Array<{
+    agentId: string;
+    displayName: string;
+    privateClue: string;
+    surfaced: boolean;
+  }>;
 };
 
 type SimulationData = {
@@ -42,6 +48,7 @@ type SimulationData = {
     id: string;
     scenarioKey: string;
     mode: string;
+    moderatorPrompt: string | null;
     model: string;
     state: "created" | "running" | "voting" | "completed";
     turnIndex: number;
@@ -132,11 +139,7 @@ function MessageCard({
   const color = agentColor(event.agentId, agents);
 
   const actionPill =
-    action === "reveal_unique_clue" ? (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-        🔍 Surfaced unique info
-      </span>
-    ) : action === "cast_vote" ? (
+    action === "cast_vote" ? (
       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
         ✓ Voted mid-discussion
       </span>
@@ -163,29 +166,6 @@ function MessageCard({
   );
 }
 
-function ClueRevealCard({
-  event,
-  agents,
-}: {
-  event: SimEvent;
-  agents: Agent[];
-}) {
-  const clue = String(event.payload.clue ?? "");
-  const speakerName = String(event.payload.speakerName ?? event.agentId ?? "Agent");
-  const color = agentColor(event.agentId, agents);
-
-  return (
-    <div className="flex gap-3">
-      <Avatar name={speakerName} colorClass={color} size="sm" />
-      <div className="flex-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-700 dark:bg-amber-950/30">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-          🔍 Unique clue surfaced — {speakerName}
-        </p>
-        <p className="text-sm text-amber-900 dark:text-amber-200">{clue}</p>
-      </div>
-    </div>
-  );
-}
 
 function VoteCard({ event, agents }: { event: SimEvent; agents: Agent[] }) {
   const option = String(event.payload.option ?? "");
@@ -263,8 +243,6 @@ function EventCard({
       return <StateTransitionCard event={event} />;
     case "message":
       return <MessageCard event={event} agents={agents} />;
-    case "tool_reveal_unique_clue":
-      return <ClueRevealCard event={event} agents={agents} />;
     case "tool_cast_vote":
       return <VoteCard event={event} agents={agents} />;
     case "moderator_intervention":
@@ -444,21 +422,24 @@ export function SimulationDetail({ simulationId }: { simulationId: string }) {
               <ProgressBar value={sim.turnIndex} max={sim.maxTurns} />
             </div>
             <div>
-              <p className="text-xs text-zinc-500">Unique clues surfaced</p>
-              <ProgressBar
-                value={metrics.uniqueInfoMentions}
-                max={metrics.totalPrivateClues}
-              />
-            </div>
-            <div>
               <p className="text-xs text-zinc-500">Votes cast</p>
               <ProgressBar value={metrics.votesCount} max={metrics.totalAgents} />
             </div>
             {sim.mode === "structured" && (
-              <div>
-                <p className="text-xs text-zinc-500">Moderator interventions</p>
-                <p className="text-sm font-medium">{metrics.moderatorInterventions}</p>
-              </div>
+              <>
+                <div>
+                  <p className="text-xs text-zinc-500">Moderator interventions</p>
+                  <p className="text-sm font-medium">{metrics.moderatorInterventions}</p>
+                </div>
+                {sim.moderatorPrompt && (
+                  <div>
+                    <p className="text-xs text-zinc-500">Moderator prompt</p>
+                    <p className="text-sm font-medium text-indigo-700 dark:text-indigo-400">
+                      {sim.moderatorPrompt}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
             {metrics.consensus && (
               <div>
@@ -466,6 +447,12 @@ export function SimulationDetail({ simulationId }: { simulationId: string }) {
                 <p className="text-sm font-medium">{metrics.consensus}</p>
               </div>
             )}
+            <div>
+              <p className="text-xs text-zinc-500">Unique clues surfaced</p>
+              <p className="text-sm font-medium">
+                {metrics.uniqueCluesSurfaced}/{metrics.totalUniqueClues}
+              </p>
+            </div>
           </div>
         </div>
       )}
