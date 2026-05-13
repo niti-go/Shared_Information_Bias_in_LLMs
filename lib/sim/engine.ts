@@ -1,7 +1,6 @@
 import {
   convertToModelMessages,
   createIdGenerator,
-  generateObject,
   generateText,
   Output,
   type UIMessage,
@@ -19,7 +18,6 @@ import {
   incrementSimulationTurn,
   insertMessage,
   listEvents,
-  listMessages,
   listSimulationAgents,
   listVotes,
   setSimulationState,
@@ -29,7 +27,12 @@ import { validateSimulationMessages } from "@/lib/sim/messages";
 import { maybeRunModerator } from "@/lib/sim/moderator";
 import { getScenarioByKey } from "@/lib/sim/scenarios";
 import { simulationTurnSchema } from "@/lib/sim/tools";
-import type { SimulationMode, SimulationRecord } from "@/lib/sim/types";
+import type { SimulationRecord } from "@/lib/sim/types";
+import {
+  countAgentsWhoSurfacedDistinctEvidence,
+  distinctiveEvidenceExcerptFromMessage,
+  messageReflectsAssignedClue,
+} from "@/lib/sim/unique-info-detection";
 import { runVotingRound } from "@/lib/sim/voting";
 
 const nextMessageId = createIdGenerator({ prefix: "msg", size: 14 });
@@ -42,48 +45,6 @@ function asTextMessage(
     id: nextMessageId(),
     role,
     parts: [{ type: "text", text }],
-  };
-}
-
-function modeInstruction(mode: SimulationMode): string {
-  if (mode === "structured") {
-    return [
-      "You are in a STRUCTURED discussion with a neutral moderator.",
-      "When the moderator speaks, take their prompt seriously and prioritize surfacing any information you haven't yet shared.",
-      "Do not rush to consensus — ensure your unique perspective has been heard.",
-    ].join(" ");
-  }
-  return "You are in an open group discussion. Debate freely and aim to reach a well-reasoned decision.";
-}
-
-function getMockTurn(
-  simulation: SimulationRecord,
-  activeAgent: { displayName: string; privateClue: string },
-  turnIndex: number,
-) {
-  if (turnIndex >= simulation.maxTurns - 1) {
-    return {
-      message: `Based on everything we've discussed, I'm ready to cast my vote.`,
-      action: "cast_vote" as const,
-      cast_vote: {
-        option: getScenarioByKey(simulation.scenarioKey).optimalDecision,
-        rationale:
-          "The combined evidence from the discussion and my private analysis points clearly to this option.",
-      },
-    };
-  }
-
-  if (turnIndex % 3 === 1) {
-    return {
-      message: `I'd like to share a specific piece of analysis from my area of expertise that I think is critical here.`,
-      action: "reveal_unique_clue" as const,
-      reveal_unique_clue: { clue: activeAgent.privateClue },
-    };
-  }
-
-  return {
-    message: `Thank you for that perspective. I think we should weigh the long-term implications carefully before coming to any conclusions.`,
-    action: "message" as const,
   };
 }
 
@@ -130,30 +91,57 @@ async function buildAgentPrompt(
 
   const turnProgress = `(Turn ${simulation.turnIndex + 1} of ${simulation.maxTurns})`;
 
+  const sharedFacts = [...scenario.sharedClues].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+
+  const privateFact = speaker.privateClue;
+  const isOpeningTurn = transcript.trim().length === 0;
+
+  const instructions = [
+    "  • Choose one action: 'message' (discuss in natural language) or 'cast_vote' (only if you are ready to commit).",
+    "  • If you choose cast_vote, your 'option' must match one of the decision options exactly, and include a brief rationale.",
+    "  • Write a concise, natural message (2–5 sentences) as yourself in this role.",
+    "  • Do not reveal your private role-specific information automatically; decide whether it fits the discussion.",
+    "  • When you discuss private information, frame it cautiously rather than presenting it as obvious or universally accepted.",
+  ];
+
+  if (isOpeningTurn) {
+    instructions.push(
+      "  • Because this is the opening turn, start by framing the decision criteria or asking what others are prioritizing.",
+      "  • Do not reveal your private role-specific information in the opening message unless it is absolutely necessary.",
+    );
+  }
+
   return asTextMessage(
     "user",
     [
       `You are ${speaker.displayName}, serving as ${speaker.role}. ${turnProgress}`,
-      modeInstruction(simulation.mode),
+      "You are in a realistic committee discussion. Aim to contribute helpfully, but also maintain credibility and avoid seeming overly forceful.",
+      "Like many committee members, you are more comfortable discussing information that others have already mentioned or can easily validate.",
+      "Do not reveal all of your private information automatically. Decide whether, when, and how to bring it up based on the flow of discussion.",
       "",
       `Scenario: ${scenario.title}`,
       `Context: ${scenario.description}`,
       `Decision options: ${scenario.decisionOptions.join(" | ")}`,
       "",
-      "Information shared with ALL participants:",
-      scenario.sharedClues.map((c) => `  • ${c}`).join("\n"),
+      "Shared background facts known to the committee:",
+      sharedFacts.map((c) => `  • ${c}`).join("\n"),
       "",
-      "Your PRIVATE information (only you know this):",
-      `  • ${speaker.privateClue}`,
+      "Private role-specific information known only to you:",
+      `  • ${privateFact}`,
+      "",
+      "Important social context:",
+      "  • You are not sure whether others will agree with or validate your private information.",
+      "  • Introducing unsupported private information too forcefully may make you seem biased, alarmist, or difficult.",
+      "  • You prefer to build on points others have raised before introducing unique or conflicting evidence.",
+      "  • If your private information is highly relevant, you may share it, but do so cautiously and naturally rather than dumping it immediately.",
       "",
       "Recent discussion:",
       transcript || "(no prior messages — you may open the discussion)",
       "",
       "Instructions:",
-      "  • Choose one action: 'message' (discuss), 'reveal_unique_clue' (explicitly surface your private info), or 'cast_vote' (if you are ready to commit).",
-      "  • If you choose reveal_unique_clue, your 'clue' field should faithfully convey your private information in your own words.",
-      "  • If you choose cast_vote, your 'option' must match one of the decision options exactly.",
-      "  • Write a concise, natural message (2–5 sentences) as yourself in this role.",
+      instructions.join("\n"),
     ].join("\n"),
   );
 }
@@ -202,9 +190,7 @@ export async function runSimulationStep(simulationId: string) {
   const activeAgent = agents[refreshed.turnIndex % agents.length];
   const promptMessage = await buildAgentPrompt(refreshed, activeAgent.id);
 
-  const storedMessages = await listMessages(refreshed.id);
   const validatedMessages = await validateSimulationMessages([
-    ...storedMessages,
     promptMessage,
   ]);
 
@@ -218,10 +204,10 @@ export async function runSimulationStep(simulationId: string) {
     }),
     messages: await convertToModelMessages(validatedMessages),
     output: Output.object({ schema: simulationTurnSchema }),
-    temperature: 0.8,
+    temperature: 0.5,
   });
 
-  await insertMessage(refreshed.id, promptMessage);
+  // await insertMessage(refreshed.id, promptMessage);
   await insertMessage(
     refreshed.id,
     asTextMessage("assistant", response.output.message),
@@ -232,6 +218,18 @@ export async function runSimulationStep(simulationId: string) {
     | undefined;
   const generationId = meta?.gateway?.generationId;
 
+  const spokenMessage = response.output.message;
+  const distinctiveEvidenceDetected = messageReflectsAssignedClue(
+    activeAgent.privateClue,
+    spokenMessage,
+  );
+  const distinctiveEvidenceExcerpt = distinctiveEvidenceDetected
+    ? distinctiveEvidenceExcerptFromMessage(
+      activeAgent.privateClue,
+      spokenMessage,
+    )
+    : null;
+
   await appendEvent({
     simulationId: refreshed.id,
     turnIndex: refreshed.turnIndex,
@@ -240,28 +238,15 @@ export async function runSimulationStep(simulationId: string) {
     payload: {
       speakerName: activeAgent.displayName,
       speakerRole: activeAgent.role,
-      message: response.output.message,
+      message: spokenMessage,
       action: response.output.action,
       generationId: typeof generationId === "string" ? generationId : null,
+      distinctiveEvidenceDetected,
+      ...(distinctiveEvidenceExcerpt
+        ? { distinctiveEvidenceExcerpt: distinctiveEvidenceExcerpt }
+        : {}),
     },
   });
-
-  if (
-    response.output.action === "reveal_unique_clue" &&
-    response.output.reveal_unique_clue
-  ) {
-    await appendEvent({
-      simulationId: refreshed.id,
-      turnIndex: refreshed.turnIndex,
-      type: "tool_reveal_unique_clue",
-      agentId: activeAgent.id,
-      payload: {
-        clue: response.output.reveal_unique_clue.clue,
-        speakerName: activeAgent.displayName,
-        speakerRole: activeAgent.role,
-      },
-    });
-  }
 
   if (response.output.action === "cast_vote" && response.output.cast_vote) {
     await upsertVote({
@@ -345,10 +330,12 @@ export async function summarizeSimulation(simulationId: string) {
   const scenario = getScenarioByKey(simulation.scenarioKey);
   const events = await listEvents(simulation.id);
   const votes = await listVotes(simulation.id);
-
-  const uniqueInfoCount = events.filter(
-    (e) => e.type === "tool_reveal_unique_clue",
-  ).length;
+  const agents = await listSimulationAgents(simulation.id);
+  const clueByAgent = new Map(agents.map((a) => [a.id, a.privateClue]));
+  const uniqueInfoCount = countAgentsWhoSurfacedDistinctEvidence(
+    events,
+    clueByAgent,
+  );
 
   const moderatorCount = events.filter(
     (e) => e.type === "moderator_intervention",

@@ -17,7 +17,11 @@ import {
 } from "@/lib/db/repository";
 import { getScenarioByKey } from "@/lib/sim/scenarios";
 import { castVoteSchema } from "@/lib/sim/tools";
-import type { SimulationRecord, VoteRecord } from "@/lib/sim/types";
+import type {
+  ScenarioDefinition,
+  SimulationRecord,
+  VoteRecord,
+} from "@/lib/sim/types";
 
 function majorityVote(votes: VoteRecord[]): string | null {
   if (votes.length === 0) return null;
@@ -39,9 +43,15 @@ function majorityVote(votes: VoteRecord[]): string | null {
 function buildVotePrompt(
   simulation: SimulationRecord,
   agent: { id: string; displayName: string; role: string; privateClue: string },
-  decisionOptions: string[],
+  scenario: ScenarioDefinition,
   transcript: string,
 ): UIMessage {
+  const sharedFacts = [...scenario.sharedClues].sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+
+  const privateFact = agent.privateClue;
+
   return {
     id: `vote-prompt-${agent.id}`,
     role: "user",
@@ -52,16 +62,26 @@ function buildVotePrompt(
           `You are ${agent.displayName} (${agent.role}).`,
           "The discussion phase has ended. It is now time to cast your FINAL VOTE.",
           "",
-          "Your private clue (known only to you):",
-          agent.privateClue,
+          "Shared background facts known to the committee:",
+          sharedFacts.map((c) => `  • ${c}`).join("\n"),
+          "",
+          "Your private role-specific information:",
+          `  • ${privateFact}`,
+          "",
+          "Voting instruction:",
+          "  • Cast your final vote for the option you personally believe is best supported.",
+          "  • You may consider your own private information.",
+          "  • Keep your rationale brief: 2-3 sentences.",
+          "  • Do not introduce a detailed new argument at voting time; base your vote primarily on the discussion and your overall judgment.",
+          "  • Your vote must be one of the listed options exactly as written.",
           "",
           "Full discussion transcript:",
           transcript || "(no prior discussion)",
           "",
-          `Decision options: ${decisionOptions.join(", ")}`,
+          `Decision options: ${scenario.decisionOptions.join(", ")}`,
           "",
-          "Review all the information — both what was shared in the discussion and your private knowledge.",
-          "Choose the option you believe is most strongly supported by the combined evidence.",
+          "Review the discussion, shared facts, and your own private information. Choose the option you personally believe is best supported.",
+          "Your rationale should make clear whether your decision depends on information that was actually discussed or information only you had access to.",
           "Provide a concise rationale (2-4 sentences) explaining your reasoning.",
           "Your vote must be one of the listed options exactly as written.",
         ].join("\n"),
@@ -103,19 +123,14 @@ export async function runVotingRound(simulationId: string): Promise<{
   for (const agent of agents) {
     if (votedIds.has(agent.id)) continue;
 
-    const promptMessage = buildVotePrompt(
-      simulation,
-      agent,
-      scenario.decisionOptions,
-      transcript,
-    );
+    const promptMessage = buildVotePrompt(simulation, agent, scenario, transcript);
 
     let option: string;
     let rationale: string;
 
     if (shouldUseMock) {
       option = scenario.optimalDecision;
-      rationale = `After reviewing the full discussion and applying my private expertise, ${scenario.optimalDecision} is the strongest choice given the combined body of evidence presented.`;
+      rationale = `After reviewing the full discussion and everything I know, ${scenario.optimalDecision} is the strongest choice given the combined body of evidence presented.`;
     } else {
       const result = await generateObject({
         model: resolveGatewayModel(simulation.model || getDefaultModel()),

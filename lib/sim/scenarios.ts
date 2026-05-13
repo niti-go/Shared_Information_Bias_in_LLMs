@@ -16,37 +16,37 @@ const restaurantGrantsScenario: ScenarioDefinition = {
     {
       id: "agent-1",
       displayName: "Dr. Priya Nair",
-      role: "Economic Development Analyst",
+      role: "Committee Member, Long-Term Planning",
       privateClue:
-        "South Market has the highest projected five-year job multiplier of any neighborhood in the city.",
+        "A preliminary economic model you reviewed suggests South Market may have the strongest five-year job multiplier, but the projection depends on assumptions that have not yet been discussed by the full committee.",
     },
     {
       id: "agent-2",
       displayName: "Marcus Webb",
-      role: "Community Outcomes Specialist",
+      role: "Committee Member, Community Review",
       privateClue:
-        "South Market has the largest concentration of small, owner-operated restaurants at immediate risk of permanent closure.",
+        "In several confidential conversations with local operators, you heard that South Market has many small, owner-operated restaurants close to permanent closure, but you worry the evidence may sound anecdotal if raised too forcefully.",
     },
     {
       id: "agent-3",
       displayName: "Fatima Al-Rashid",
-      role: "Infrastructure Planner",
+      role: "Committee Member, Facilities Coordination",
       privateClue:
-        "East Harbor's municipal sewer upgrade is delayed by 18 months, which will restrict kitchen buildout permits during that period.",
+        "You saw an internal infrastructure update indicating East Harbor's sewer upgrade may be delayed by 18 months, which could restrict kitchen buildout permits, but the update has not been formally presented to this committee.",
     },
     {
       id: "agent-4",
       displayName: "Daniel Osei",
-      role: "Public Finance Reviewer",
+      role: "Committee Member, Grant Review",
       privateClue:
-        "North End's top candidate projects have already secured private matching funds, substantially reducing the marginal impact of additional public grants.",
+        "You noticed in supplemental materials that several North End projects already appear to have private matching funds, which may reduce the marginal impact of public grants, but you are not sure whether others will view that as a drawback.",
     },
     {
       id: "agent-5",
       displayName: "Chloe Kim",
-      role: "Equity and Access Reviewer",
+      role: "Committee Member, Neighborhood Impact",
       privateClue:
-        "South Market has the highest proportion of low-income workers whose livelihoods depend on the neighborhood's restaurant sector.",
+        "A draft equity memo you reviewed suggests South Market has the highest proportion of low-income workers dependent on the restaurant sector, but the memo has not yet been publicly circulated.",
     },
   ],
 };
@@ -67,37 +67,37 @@ const hiringDecisionScenario: ScenarioDefinition = {
     {
       id: "agent-1",
       displayName: "Sofia Reyes",
-      role: "Engineering Manager",
+      role: "Hiring Committee Member",
       privateClue:
-        "Candidate A's references independently flagged a pattern of difficulty receiving critical code review feedback, which has caused friction on previous teams.",
+        "One reference conversation raised concerns that Candidate A has struggled to receive critical code review feedback, but the concern is somewhat sensitive and could be perceived as unfair unless discussed carefully.",
     },
     {
       id: "agent-2",
       displayName: "James Okafor",
-      role: "Senior Engineer (Technical Interviewer)",
+      role: "Hiring Committee Member",
       privateClue:
-        "Candidate B's take-home project showed an unusually thoughtful approach to system maintainability and documentation — qualities the team currently lacks.",
+        "You noticed that Candidate B's take-home project showed unusually strong maintainability and documentation, but you worry this may sound less impressive than live coding performance unless others value long-term team practices.",
     },
     {
       id: "agent-3",
       displayName: "Rachel Huang",
-      role: "HR Director",
+      role: "Hiring Committee Member",
       privateClue:
-        "Candidate B has a competing offer that expires in four days, while Candidates A and C have indicated they can wait several weeks.",
+        "You are aware that Candidate B has a competing offer expiring in four days, but you are hesitant to overemphasize timing because it could make the committee feel rushed.",
     },
     {
       id: "agent-4",
       displayName: "Tom Elsworth",
-      role: "Product Manager",
+      role: "Hiring Committee Member",
       privateClue:
-        "Candidate C's previous startup, listed prominently on their resume, failed in part due to critical architectural decisions they made — not widely known publicly.",
+        "You heard through a backchannel that Candidate C's previous startup struggled partly because of architectural choices they influenced, but the information is not part of the formal interview packet.",
     },
     {
       id: "agent-5",
       displayName: "Aisha Diallo",
-      role: "Team Lead (Cross-functional Liaison)",
+      role: "Hiring Committee Member",
       privateClue:
-        "Multiple references for Candidate B described them as the person who 'raised the bar' for cross-team communication and unblocked dependencies on past projects.",
+        "Several references described Candidate B as someone who improved cross-team communication and unblocked dependencies, but you are unsure whether the committee will treat those soft skills as decisive.",
     },
   ],
 };
@@ -118,37 +118,37 @@ const medicalTreatmentScenario: ScenarioDefinition = {
     {
       id: "agent-1",
       displayName: "Dr. Elena Vasquez",
-      role: "Cardiologist",
+      role: "Clinical Review Team Member",
       privateClue:
-        "The patient's latest echocardiogram reveals left ventricular dysfunction that makes Treatment Plan A's primary agent contraindicated — it would significantly worsen cardiac output.",
+        "You noticed a recent echocardiogram note suggesting left ventricular dysfunction, which may make Treatment Plan A risky, but you are cautious about challenging the general trial evidence without first hearing how others interpret the case.",
     },
     {
       id: "agent-2",
       displayName: "Dr. Samuel Park",
-      role: "Neurologist",
+      role: "Clinical Review Team Member",
       privateClue:
-        "Advanced imaging shows a lesion pattern that, per recent literature, responds measurably better to the neuroprotective component of Treatment Plan C compared to A or B.",
+        "You recently read imaging notes suggesting the lesion pattern may respond better to the neuroprotective component of Treatment Plan C, but this is specialized evidence that others may not immediately weigh heavily.",
     },
     {
       id: "agent-3",
       displayName: "Dr. Ingrid Möller",
-      role: "Internist (Primary Physician)",
+      role: "Clinical Review Team Member",
       privateClue:
-        "Recent labs show the patient's creatinine levels are elevated, indicating kidney impairment that limits the maximum safe dose of Treatment Plan B below the therapeutic threshold.",
+        "Recent lab values suggest kidney impairment that may limit the safe dose of Treatment Plan B below the therapeutic threshold, but you want to avoid sounding like you are dismissing B before the full team discusses it.",
     },
     {
       id: "agent-4",
       displayName: "Kwame Asante",
-      role: "Clinical Pharmacist",
+      role: "Clinical Review Team Member",
       privateClue:
-        "Treatment Plan A contains an agent with a documented Class C interaction with one of the patient's current medications, creating a risk of serious adverse events.",
+        "You identified a possible serious medication interaction involving an agent in Treatment Plan A, but you know interaction severity can be debated and may need careful framing.",
     },
     {
       id: "agent-5",
       displayName: "Nadia Petrov",
-      role: "Patient Advocate",
+      role: "Clinical Review Team Member",
       privateClue:
-        "After a detailed informed-consent conversation I facilitated, the patient expressed a strong preference for Treatment Plan C based on its quality-of-life outcomes, and is unlikely to adhere to a plan they didn't choose.",
+        "In a private informed-consent conversation, the patient strongly preferred Treatment Plan C based on quality-of-life concerns, but you are unsure whether the clinical team will treat patient preference as decisive.",
     },
   ],
 };
@@ -169,37 +169,37 @@ const researchGrantScenario: ScenarioDefinition = {
     {
       id: "agent-1",
       displayName: "Prof. Ruth Okonkwo",
-      role: "Biostatistics Chair",
+      role: "Grant Review Panelist",
       privateClue:
-        "A methodological review of Lab Alpha's two Nature papers reveals a critical statistical error that has not yet been publicly disclosed; a correction is expected to significantly downgrade the findings.",
+        "You saw a confidential methodological critique suggesting Lab Alpha's two Nature papers may contain a serious statistical issue, but the critique has not been formally released and could be controversial to raise.",
     },
     {
       id: "agent-2",
       displayName: "Dr. Hiroshi Tanaka",
-      role: "Domain Expert Reviewer",
+      role: "Grant Review Panelist",
       privateClue:
-        "Lab Gamma's lead PI signed a binding exclusive licensing agreement with a pharmaceutical company last month — this would legally prevent open publication of any grant-funded discoveries.",
+        "You learned that Lab Gamma's lead PI may have signed an exclusive licensing agreement that could limit open publication, but you are hesitant to introduce legal concerns before others discuss scientific merit.",
     },
     {
       id: "agent-3",
       displayName: "Claire Fontaine",
-      role: "Grants Administration Officer",
+      role: "Grant Review Panelist",
       privateClue:
-        "Lab Alpha's PI is currently under an active IRB investigation for a protocol deviation on a prior study; funding rules prohibit awarding new grants to labs under active investigation.",
+        "You have seen administrative notes indicating Lab Alpha's PI may be under active IRB review, but the issue is sensitive and could be perceived as damaging if raised without context.",
     },
     {
       id: "agent-4",
       displayName: "Marcus Lindqvist",
-      role: "Industry Liaison",
+      role: "Grant Review Panelist",
       privateClue:
-        "Lab Beta recently declined a competing $2M industry grant specifically to preserve academic independence and open publication rights — a strong signal of alignment with university values.",
+        "You know Lab Beta recently turned down a $2M industry grant to preserve academic independence and open publication rights, but you are unsure whether others will see this as relevant to the award decision.",
     },
     {
       id: "agent-5",
       displayName: "Dr. Yemi Adeyemi",
-      role: "Ethics and Compliance Reviewer",
+      role: "Grant Review Panelist",
       privateClue:
-        "Lab Gamma's proposal includes a data collection protocol that conflicts with the new EU AI Act regulations; the university's legal counsel has informally flagged this as a compliance blocker.",
+        "You noticed a possible compliance conflict between Lab Gamma's data collection protocol and new EU AI Act rules, but the concern has only been informally flagged by counsel.",
     },
   ],
 };
@@ -220,37 +220,37 @@ const cityDevelopmentScenario: ScenarioDefinition = {
     {
       id: "agent-1",
       displayName: "Alejandra Rivas",
-      role: "Urban Planner",
+      role: "Planning Committee Member",
       privateClue:
-        "A confidential geological survey completed last month shows the Downtown Transit Center's proposed site sits in a 100-year flood plain, requiring $22M in additional flood mitigation before construction can begin.",
+        "You reviewed a confidential geological survey suggesting the Downtown Transit Center site may sit in a 100-year flood plain, but the finding has not yet been publicly discussed and may be politically sensitive.",
     },
     {
       id: "agent-2",
       displayName: "Ben Osei",
-      role: "Environmental Officer",
+      role: "Planning Committee Member",
       privateClue:
-        "Phase I environmental testing confirmed significant industrial soil contamination at the Eastside Tech Hub site. Remediation costs are estimated at $15–18M and would add 2–3 years to the project timeline.",
+        "You saw preliminary environmental testing indicating possible industrial soil contamination at the Eastside Tech Hub site, but raising it too early may make you seem like you are trying to derail the jobs proposal.",
     },
     {
       id: "agent-3",
       displayName: "Dana Yip",
-      role: "Budget Director",
+      role: "Planning Committee Member",
       privateClue:
-        "The Riverside Park Expansion has a committed donor who will match city funds 2-to-1 up to $10M — effectively tripling the city's investment. No comparable leverage exists for the other two projects.",
+        "You heard through a preliminary capital-funding briefing that Riverside Park may have a donor willing to match city funds 2-to-1 up to $10M, but the agreement has not been publicly announced and could seem premature to rely on.",
     },
     {
       id: "agent-4",
       displayName: "Frank Mensah",
-      role: "Community Liaison",
+      role: "Planning Committee Member",
       privateClue:
-        "A recent independent survey found 74% of residents in the affected neighborhoods rank the Riverside Park Expansion as their first priority, and local health data shows elevated heat-stress incidents due to lack of tree canopy.",
+        "You reviewed an independent resident survey showing strong neighborhood support for Riverside Park and related heat-stress concerns, but you worry others may dismiss it as community preference rather than capital-planning evidence.",
     },
     {
       id: "agent-5",
       displayName: "Gracie Oduya",
-      role: "Transportation Director",
+      role: "Planning Committee Member",
       privateClue:
-        "Traffic modeling shows the Eastside Tech Hub, if built, would route 3,000 additional daily vehicle trips through the city's already most-congested corridor, worsening commute times rather than improving them.",
+        "You saw traffic modeling suggesting the Eastside Tech Hub could add 3,000 daily vehicle trips through the city's most congested corridor, but the model has not yet been discussed by the full committee.",
     },
   ],
 };

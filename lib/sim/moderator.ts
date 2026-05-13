@@ -6,19 +6,26 @@ import {
   getGatewayProviderOptions,
   resolveGatewayModel,
 } from "@/lib/ai/gateway";
-import { appendEvent, listEvents, listVotes } from "@/lib/db/repository";
+import {
+  appendEvent,
+  listEvents,
+  listSimulationAgents,
+  listVotes,
+} from "@/lib/db/repository";
 import { moderatorDecisionSchema } from "@/lib/sim/tools";
 import type { SimulationRecord } from "@/lib/sim/types";
+import { countAgentsWhoSurfacedDistinctEvidence } from "@/lib/sim/unique-info-detection";
 
 export const MODERATOR_AGENT_ID = "moderator";
 
 // Only run the moderator at specific turn intervals, not every turn.
-const MODERATOR_INTERVAL = 3;
+const MODERATOR_INTERVAL = 4;
 
 function buildModeratorPrompt(
   simulation: SimulationRecord,
   transcript: string,
-  uniqueCluesRevealed: number,
+  agentsWithDistinctEvidenceInDiscussion: number,
+  participantCount: number,
   votesRecorded: number,
   convergenceOption: string | null,
 ): UIMessage {
@@ -41,7 +48,7 @@ function buildModeratorPrompt(
           "Current statistics:",
           `  - Turns elapsed: ${simulation.turnIndex} of ${simulation.maxTurns}`,
           `  - Turns remaining: ${turnsLeft}`,
-          `  - Unique private clues surfaced by agents: ${uniqueCluesRevealed}`,
+          `  - Participants whose messages appear to reflect scenario-specific evidence beyond generic agreement (automated estimate): ${agentsWithDistinctEvidenceInDiscussion} of ${participantCount}`,
           `  - Votes already recorded: ${votesRecorded}`,
           convergenceOption
             ? `  - The group appears to be converging toward: "${convergenceOption}"`
@@ -50,22 +57,23 @@ function buildModeratorPrompt(
           "Decide whether to intervene now.",
           "",
           "INTERVENE if any of the following are true:",
-          "  1. The group is converging but few unique private insights have been shared",
-          "  2. Agents are repeating shared information without adding new evidence",
+          "  1. The group is converging but few participants have contributed substantive, differentiated reasoning",
+          "  2. Agents are repeating the same points without adding new evidence or perspectives",
           "  3. A particular option is gaining momentum without critical scrutiny",
           "  4. The discussion has stalled or agents are just agreeing with each other",
           "",
           "DO NOT intervene if:",
           "  - Agents are actively introducing new evidence and debating meaningfully",
           "  - The natural conclusion seems well-reasoned based on what has been shared",
+          "  - The discussion is still in the opening phase and participants are naturally establishing criteria",
           `  - Only 1 turn remains (let the group finish naturally)`,
           "",
           "If you intervene, write a brief, neutral message (1-3 sentences).",
-          "Do NOT suggest which option is correct. Do NOT reveal private information.",
+          "Do NOT suggest which option is correct. Do NOT introduce facts that do not appear in the transcript.",
           "Good intervention examples:",
-          '  - "Before we converge, has each member shared any unique analysis or data points that haven\'t yet come up?"',
-          '  - "I notice we may be reaching consensus. Let\'s ensure we\'ve heard all perspectives — is there any evidence that might challenge the current direction?"',
-          '  - "Could anyone elaborate on factors they considered but haven\'t mentioned yet?"',
+          '  - "Before we settle, could each person briefly explain what criterion they are weighting most heavily?"',
+          '  - "I notice we may be reaching consensus. Let\'s pause to consider whether the current direction has any practical, financial, equity, or implementation risks."',
+          '  - "Could someone who has not spoken recently add how they are thinking about the tradeoffs?"',
         ].join("\n"),
       },
     ],
@@ -109,9 +117,12 @@ export async function maybeRunModerator(
   const events = await listEvents(simulation.id);
   const votes = await listVotes(simulation.id);
 
-  const uniqueCluesRevealed = events.filter(
-    (e) => e.type === "tool_reveal_unique_clue",
-  ).length;
+  const agents = await listSimulationAgents(simulation.id);
+  const clueByAgent = new Map(agents.map((a) => [a.id, a.privateClue]));
+  const agentsWithDistinctEvidence = countAgentsWhoSurfacedDistinctEvidence(
+    events,
+    clueByAgent,
+  );
 
   const convergenceOption = detectConvergence(events, decisionOptions);
 
@@ -132,7 +143,8 @@ export async function maybeRunModerator(
   const promptMessage = buildModeratorPrompt(
     simulation,
     transcript,
-    uniqueCluesRevealed,
+    agentsWithDistinctEvidence,
+    agents.length,
     votes.length,
     convergenceOption,
   );
@@ -141,7 +153,7 @@ export async function maybeRunModerator(
 
   if (shouldUseMock) {
     const shouldIntervene =
-      uniqueCluesRevealed < 2 || convergenceOption !== null;
+      agentsWithDistinctEvidence < 2 || convergenceOption !== null;
     if (!shouldIntervene) return;
 
     await appendEvent({
@@ -155,9 +167,9 @@ export async function maybeRunModerator(
           ? "flag_premature_convergence"
           : "ask_for_unique_info",
         message:
-          "Before we move forward, has each participant had a chance to share any data or analysis unique to their expertise that hasn't come up yet? I want to make sure we're considering the full picture.",
+          "Before we move forward, let's pause and make sure we're not relying too heavily on the most obvious shared points. Could someone add a different criterion or tradeoff they think deserves more attention?",
         reasoning:
-          "Mock moderator: low unique-clue rate or convergence detected.",
+          "Mock moderator: limited substantive contributions from multiple participants, or convergence detected.",
       },
     });
     return;

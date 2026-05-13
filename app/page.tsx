@@ -19,7 +19,7 @@ export default function Home() {
           A simulation environment for studying how LLM agents share — or withhold
           — private information during group decision-making. Runs{" "}
           <strong>hidden-profile scenarios</strong> where optimal outcomes require
-          surfacing information distributed across agents, then measures whether
+          pooling information distributed across agents, then measures whether
           models find the correct answer alone or with a structured moderator.
         </p>
       </header>

@@ -129,18 +129,27 @@ function MessageCard({
   const speakerRole = String(event.payload.speakerRole ?? "");
   const message = String(event.payload.message ?? "");
   const action = String(event.payload.action ?? "message");
+  const distinctiveEvidenceDetected = Boolean(
+    event.payload.distinctiveEvidenceDetected,
+  );
   const color = agentColor(event.agentId, agents);
 
-  const actionPill =
-    action === "reveal_unique_clue" ? (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-        🔍 Surfaced unique info
-      </span>
-    ) : action === "cast_vote" ? (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-        ✓ Voted mid-discussion
-      </span>
-    ) : null;
+  const showPills = distinctiveEvidenceDetected || action === "cast_vote";
+
+  const actionPill = showPills ? (
+    <span className="flex flex-wrap items-center gap-1.5">
+      {distinctiveEvidenceDetected && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+          🔍 Unique clue surfaced
+        </span>
+      )}
+      {action === "cast_vote" && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+          ✓ Voted mid-discussion
+        </span>
+      )}
+    </span>
+  ) : null;
 
   return (
     <div className="flex gap-3">
@@ -158,6 +167,13 @@ function MessageCard({
         <div className="rounded-2xl rounded-tl-sm bg-zinc-100 px-4 py-2.5 text-sm dark:bg-zinc-800">
           {message}
         </div>
+        {distinctiveEvidenceDetected && (
+          <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">
+            <p className="font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+              🔍 Unique clue surfaced
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -228,7 +244,7 @@ function ModeratorCard({ event }: { event: SimEvent }) {
   const message = String(event.payload.message ?? "");
   const interventionType = String(event.payload.interventionType ?? "");
   const typeLabel: Record<string, string> = {
-    ask_for_unique_info: "Asking for unique info",
+    ask_for_unique_info: "Inviting broader perspectives",
     flag_premature_convergence: "Flagging premature convergence",
     probe_discussion: "Probing the discussion",
   };

@@ -28,8 +28,8 @@ type SimulationsResponse = {
 
 const DEFAULT_MODELS = [
   // "openai/gpt-4o-mini",
-  // "anthropic/claude-sonnet-4-5",
-  "google/gemini-3.1-flash-lite",
+  "anthropic/claude-sonnet-4-5",
+  // "google/gemini-3.1-flash-lite",
 ];
 
 const STATE_STYLES: Record<string, string> = {
